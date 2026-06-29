@@ -79,6 +79,16 @@ enum class TuyaInitState : uint8_t {
   INIT_DONE,
 };
 
+// Tuya MCU WiFi-status byte values — payload of WIFI_STATE (cmd 0x03).
+// Some MCUs gate datapoint autoreports on seeing WIFI_AND_CLOUD_CONNECTED (0x04).
+enum class TuyaWiFiState : uint8_t {
+  SMARTCONFIG_PAIRING = 0x00,
+  AP_PAIRING = 0x01,
+  NOT_CONNECTED = 0x02,
+  WIFI_CONNECTED_NO_CLOUD = 0x03,
+  WIFI_AND_CLOUD_CONNECTED = 0x04,
+};
+
 struct TuyaCommand {
   TuyaCommandType cmd;
   std::vector<uint8_t> payload;
@@ -95,6 +105,7 @@ class Tuya : public Component, public uart::UARTDevice {
   void set_boolean_datapoint_value(uint8_t datapoint_id, bool value);
   void set_integer_datapoint_value(uint8_t datapoint_id, uint32_t value);
   void set_status_pin(InternalGPIOPin *status_pin) { this->status_pin_ = status_pin; }
+  void set_force_connected_status(bool force_connected) { this->force_connected_status_ = force_connected; }
   void set_string_datapoint_value(uint8_t datapoint_id, const std::string &value);
   void set_enum_datapoint_value(uint8_t datapoint_id, uint8_t value);
   void set_bitmask_datapoint_value(uint8_t datapoint_id, uint32_t value, uint8_t length);
@@ -158,6 +169,7 @@ class Tuya : public Component, public uart::UARTDevice {
   std::vector<TuyaCommand> command_queue_;
   optional<TuyaCommandType> expected_response_{};
   uint8_t wifi_status_ = -1;
+  bool force_connected_status_{false};
   CallbackManager<void()> initialized_callback_{};
 };
 
