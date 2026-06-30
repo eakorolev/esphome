@@ -180,6 +180,14 @@ class Tuya : public Component, public uart::UARTDevice {
   uint16_t bad_checksum_count_{0};
   uint16_t real_status_drop_count_{0};
   uint8_t real_status_min_seen_ = 0xFF;  // 0xFF = "never updated yet"
+  // Last-emitted WIFI_STATE log values — for change-only logging. The 1Hz
+  // poll would otherwise dominate the 768-byte ring buffer; we only log when
+  // any of {real, actual, wifi, api_count} actually changes.
+  uint8_t last_logged_real_{0xFF};
+  uint8_t last_logged_actual_{0xFF};
+  uint8_t last_logged_api_count_{0xFF};
+  bool last_logged_wifi_{false};
+  bool wifi_st_log_pending_{true};
   CallbackManager<void()> initialized_callback_{};
 };
 

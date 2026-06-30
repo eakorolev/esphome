@@ -638,8 +638,6 @@ uint8_t Tuya::get_wifi_status_code_() {
     }
   }
 
-  // Compact form: "WiFi:<sent>[ <real>](<wifi><api_count>)".
-  // <real> appears only when it differs from <sent> (force-latch overriding).
   // api_count: number of native API clients via active_clients() view —
   // inlined here because util.h's api_is_connected() exposes only a bool, and
   // we want to distinguish "HA only" from "HA + log subscriber". Done locally
@@ -652,11 +650,26 @@ uint8_t Tuya::get_wifi_status_code_() {
     api_count = static_cast<uint8_t>(view.end() - view.begin());
   }
 #endif
-  if (real_status == actual_status) {
-    ESP_LOGD(TAG, "WiFi:%02X(%d%d)", actual_status, static_cast<int>(network::is_connected()), api_count);
-  } else {
-    ESP_LOGD(TAG, "WiFi:%02X %02X(%d%d)", actual_status, real_status, static_cast<int>(network::is_connected()),
-             api_count);
+
+  // Compact form: "WiFi:<sent>[ <real>](<wifi><api_count>)".
+  // <real> appears only when it differs from <sent> (force-latch overriding).
+  // Log only when any of {real, actual, wifi, api_count} changed — accumulated
+  // history lives in the dump_config Counters: line (drop count + minimum
+  // real). At 1Hz this would otherwise burn through the 768-byte ring buffer.
+  bool wifi_conn = network::is_connected();
+  if (this->wifi_st_log_pending_ || real_status != this->last_logged_real_ ||
+      actual_status != this->last_logged_actual_ || api_count != this->last_logged_api_count_ ||
+      wifi_conn != this->last_logged_wifi_) {
+    if (real_status == actual_status) {
+      ESP_LOGD(TAG, "WiFi:%02X(%d%d)", actual_status, static_cast<int>(wifi_conn), api_count);
+    } else {
+      ESP_LOGD(TAG, "WiFi:%02X %02X(%d%d)", actual_status, real_status, static_cast<int>(wifi_conn), api_count);
+    }
+    this->last_logged_real_ = real_status;
+    this->last_logged_actual_ = actual_status;
+    this->last_logged_api_count_ = api_count;
+    this->last_logged_wifi_ = wifi_conn;
+    this->wifi_st_log_pending_ = false;
   }
   return actual_status;
 }
