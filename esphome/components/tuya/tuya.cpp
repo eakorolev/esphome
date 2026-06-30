@@ -154,25 +154,6 @@ bool Tuya::validate_message_() {
 
   // valid message
   const uint8_t *message_data = data + 6;
-  // Log every received frame at DEBUG, even successful ones. Compact hex
-  // (no separators) — costs ~2 chars/byte; capped at MAX_DATAPOINT_LOG_BYTES
-  // to stay within the small logger ring buffer. Format: `RX <cmd> <payload>`.
-  {
-    constexpr size_t kHexCap = MAX_DATAPOINT_LOG_BYTES * 2 + 1;
-    char hex_buf[kHexCap];
-    size_t to_log = length < MAX_DATAPOINT_LOG_BYTES ? length : MAX_DATAPOINT_LOG_BYTES;
-    static const char kHex[] = "0123456789ABCDEF";
-    for (size_t i = 0; i < to_log; i++) {
-      hex_buf[i * 2] = kHex[message_data[i] >> 4];
-      hex_buf[i * 2 + 1] = kHex[message_data[i] & 0x0F];
-    }
-    hex_buf[to_log * 2] = '\0';
-    if (length > MAX_DATAPOINT_LOG_BYTES) {
-      ESP_LOGD(TAG, "RX%02X%s+%zu", command, hex_buf, length - MAX_DATAPOINT_LOG_BYTES);
-    } else {
-      ESP_LOGD(TAG, "RX%02X%s", command, hex_buf);
-    }
-  }
   this->handle_command_(command, version, message_data, length);
 
   // return false to reset rx buffer
@@ -512,25 +493,6 @@ void Tuya::send_raw_command_(TuyaCommand command) {
       break;
     default:
       break;
-  }
-
-  // Compact TX log, symmetric with RX log in validate_message_().
-  {
-    constexpr size_t kHexCap = MAX_DATAPOINT_LOG_BYTES * 2 + 1;
-    char hex_buf[kHexCap];
-    size_t to_log = command.payload.size() < MAX_DATAPOINT_LOG_BYTES ? command.payload.size() : MAX_DATAPOINT_LOG_BYTES;
-    static const char kHex[] = "0123456789ABCDEF";
-    for (size_t i = 0; i < to_log; i++) {
-      hex_buf[i * 2] = kHex[command.payload[i] >> 4];
-      hex_buf[i * 2 + 1] = kHex[command.payload[i] & 0x0F];
-    }
-    hex_buf[to_log * 2] = '\0';
-    if (command.payload.size() > MAX_DATAPOINT_LOG_BYTES) {
-      ESP_LOGD(TAG, "TX%02X%s+%zu", static_cast<uint8_t>(command.cmd), hex_buf,
-               command.payload.size() - MAX_DATAPOINT_LOG_BYTES);
-    } else {
-      ESP_LOGD(TAG, "TX%02X%s", static_cast<uint8_t>(command.cmd), hex_buf);
-    }
   }
 
   this->write_array({0x55, 0xAA, version, (uint8_t) command.cmd, len_hi, len_lo});
