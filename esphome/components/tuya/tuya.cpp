@@ -618,12 +618,23 @@ uint8_t Tuya::get_wifi_status_code_() {
 
   // Compact form: "WiFi:<sent>[ <real>](<wifi><api_count>)".
   // <real> appears only when it differs from <sent> (force-latch overriding).
+  // api_count: number of native API clients via active_clients() view —
+  // inlined here because util.h's api_is_connected() exposes only a bool, and
+  // we want to distinguish "HA only" from "HA + log subscriber". Done locally
+  // (not via util.h) so the patch lives entirely inside the tuya component
+  // and works with external_components without forking the esphome core.
+  uint8_t api_count = 0;
+#ifdef USE_API
+  if (api::global_api_server != nullptr) {
+    auto view = api::global_api_server->active_clients();
+    api_count = static_cast<uint8_t>(view.end() - view.begin());
+  }
+#endif
   if (real_status == actual_status) {
-    ESP_LOGD(TAG, "WiFi:%02X(%d%d)", actual_status, static_cast<int>(network::is_connected()),
-             static_cast<int>(api_num_connected()));
+    ESP_LOGD(TAG, "WiFi:%02X(%d%d)", actual_status, static_cast<int>(network::is_connected()), api_count);
   } else {
     ESP_LOGD(TAG, "WiFi:%02X %02X(%d%d)", actual_status, real_status, static_cast<int>(network::is_connected()),
-             static_cast<int>(api_num_connected()));
+             api_count);
   }
   return actual_status;
 }
