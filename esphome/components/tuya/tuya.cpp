@@ -590,9 +590,8 @@ uint8_t Tuya::get_wifi_status_code_() {
     }
   }
 
-  ESP_LOGD(TAG, "WIFI_STATE: real=0x%02X sent=0x%02X (wifi=%d api=%d forced=%d latched=%d)", real_status,
-           actual_status, static_cast<int>(network::is_connected()), static_cast<int>(remote_is_connected()),
-           static_cast<int>(this->force_connected_status_), static_cast<int>(this->reached_cloud_status_));
+  ESP_LOGD(TAG, "WIFI_STATE: real=0x%02X sent=0x%02X (wifi=%d api=%d)", real_status, actual_status,
+           static_cast<int>(network::is_connected()), static_cast<int>(remote_is_connected()));
   return actual_status;
 }
 
