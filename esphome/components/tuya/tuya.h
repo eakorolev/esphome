@@ -171,6 +171,15 @@ class Tuya : public Component, public uart::UARTDevice {
   uint8_t wifi_status_ = -1;
   bool force_connected_status_{false};
   bool reached_cloud_status_{false};
+  // Diagnostic counters — survive logger ring-buffer turnover. Dumped via
+  // dump_config(), so a subscribe-with-dump_config snapshot reveals what
+  // happened across the device's whole uptime, not just the last 768 bytes
+  // of log. uint16_t saturates at 65535; that is plenty for hours of run.
+  uint16_t rx_timeout_count_{0};
+  uint16_t bad_header_count_{0};
+  uint16_t bad_checksum_count_{0};
+  uint16_t real_status_drop_count_{0};
+  uint8_t real_status_min_seen_ = 0xFF;  // 0xFF = "never updated yet"
   CallbackManager<void()> initialized_callback_{};
 };
 

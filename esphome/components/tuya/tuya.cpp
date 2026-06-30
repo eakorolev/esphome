@@ -84,6 +84,12 @@ void Tuya::dump_config() {
   }
   LOG_PIN("  Status Pin: ", this->status_pin_);
   ESP_LOGCONFIG(TAG, "  Product: '%s'", this->product_.c_str());
+  // Diagnostic snapshot — accumulated since boot, survives logger ring-buffer turnover.
+  // real_status_min_seen_ == 0xFF means "never updated" (no drops observed yet, or
+  // force_connected_status not enabled).
+  ESP_LOGCONFIG(TAG, "  Counters: rx_timeouts=%u bad_headers=%u bad_checksums=%u real_drops=%u real_min=0x%02X",
+                this->rx_timeout_count_, this->bad_header_count_, this->bad_checksum_count_,
+                this->real_status_drop_count_, this->real_status_min_seen_);
 }
 
 bool Tuya::validate_message_() {
@@ -95,6 +101,8 @@ bool Tuya::validate_message_() {
   if (at == 0) {
     if (new_byte == 0x55)
       return true;
+    if (this->bad_header_count_ < UINT16_MAX)
+      this->bad_header_count_++;
     ESP_LOGD(TAG, "Stray RX byte 0x%02X at frame start (expected 0x55)", new_byte);
     return false;
   }
@@ -102,6 +110,8 @@ bool Tuya::validate_message_() {
   if (at == 1) {
     if (new_byte == 0xAA)
       return true;
+    if (this->bad_header_count_ < UINT16_MAX)
+      this->bad_header_count_++;
     ESP_LOGD(TAG, "Stray RX byte 0x%02X after 0x55 (expected 0xAA)", new_byte);
     return false;
   }
@@ -136,6 +146,8 @@ bool Tuya::validate_message_() {
     calc_checksum += data[i];
 
   if (rx_checksum != calc_checksum) {
+    if (this->bad_checksum_count_ < UINT16_MAX)
+      this->bad_checksum_count_++;
     ESP_LOGW(TAG, "Tuya Received invalid message checksum %02X!=%02X", rx_checksum, calc_checksum);
     return false;
   }
@@ -537,6 +549,8 @@ void Tuya::process_command_queue_() {
 
   if (now - this->last_rx_char_timestamp_ > RECEIVE_TIMEOUT) {
     if (!this->rx_message_.empty()) {
+      if (this->rx_timeout_count_ < UINT16_MAX)
+        this->rx_timeout_count_++;
       char hex_buf[format_hex_pretty_size(MAX_DATAPOINT_LOG_BYTES)];
       size_t to_log = std::min(this->rx_message_.size(), MAX_DATAPOINT_LOG_BYTES);
       ESP_LOGW(TAG, "RX timeout: dropping %zu-byte partial frame: %s", this->rx_message_.size(),
@@ -613,6 +627,14 @@ uint8_t Tuya::get_wifi_status_code_() {
     }
     if (this->reached_cloud_status_) {
       actual_status = static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED);
+      // Track post-latch drops: every tick where real_status < 0x04 after
+      // we have latched is the case the latch is actually defending against.
+      if (real_status < static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED)) {
+        if (this->real_status_drop_count_ < UINT16_MAX)
+          this->real_status_drop_count_++;
+        if (real_status < this->real_status_min_seen_)
+          this->real_status_min_seen_ = real_status;
+      }
     }
   }
 
