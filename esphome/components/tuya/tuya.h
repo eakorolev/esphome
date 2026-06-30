@@ -170,6 +170,7 @@ class Tuya : public Component, public uart::UARTDevice {
   optional<TuyaCommandType> expected_response_{};
   uint8_t wifi_status_ = -1;
   bool force_connected_status_{false};
+  bool reached_cloud_status_{false};
   CallbackManager<void()> initialized_callback_{};
 };
 

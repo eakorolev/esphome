@@ -557,9 +557,17 @@ void Tuya::set_status_pin_() {
 }
 
 uint8_t Tuya::get_wifi_status_code_() {
-  // When force_connected_status_ is enabled, advertise WIFI_AND_CLOUD_CONNECTED (0x04)
-  // as long as the local WiFi link is up. Keeps Tuya MCUs that gate autoreports on
-  // "cloud connected" emitting datapoint updates across HA/MQTT session flaps.
+  // Sticky latch: once force_connected_status_ has caused us to announce
+  // WIFI_AND_CLOUD_CONNECTED (0x04) at least once, never retract. Tuya MCUs
+  // that gate autoreports on the 0x04 announcement frequently fail to
+  // re-enable on subsequent 0x04 edges — once they see 0x03 or 0x02 they
+  // stay silent until a full power cycle. WiFi drop, scan, or HA API flap
+  // would otherwise downgrade our reported status; the latch keeps the MCU
+  // happy across those transients.
+  if (this->force_connected_status_ && this->reached_cloud_status_) {
+    return static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED);
+  }
+
   uint8_t status = static_cast<uint8_t>(TuyaWiFiState::NOT_CONNECTED);
 
   if (network::is_connected()) {
@@ -568,6 +576,9 @@ uint8_t Tuya::get_wifi_status_code_() {
     // Protocol version 3 also supports specifying when connected to "the cloud"
     if (this->protocol_version_ >= 0x03 && (this->force_connected_status_ || remote_is_connected())) {
       status = static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED);
+      if (this->force_connected_status_) {
+        this->reached_cloud_status_ = true;
+      }
     }
   } else {
 #ifdef USE_CAPTIVE_PORTAL
