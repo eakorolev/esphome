@@ -590,8 +590,16 @@ uint8_t Tuya::get_wifi_status_code_() {
     }
   }
 
-  ESP_LOGD(TAG, "WIFI_STATE: real=0x%02X sent=0x%02X (wifi=%d api=%d)", real_status, actual_status,
-           static_cast<int>(network::is_connected()), static_cast<int>(remote_is_connected()));
+  // Compact form: "WiFi_st: <sent> [<real>] (<wifi> <api_count>)".
+  // <real> appears only when it differs from <sent> (i.e. the force-latch is
+  // currently overriding) — saves bytes in the 768B logger ring buffer.
+  if (real_status == actual_status) {
+    ESP_LOGD(TAG, "WiFi_st: %02X (%d %d)", actual_status, static_cast<int>(network::is_connected()),
+             static_cast<int>(api_num_connected()));
+  } else {
+    ESP_LOGD(TAG, "WiFi_st: %02X %02X (%d %d)", actual_status, real_status, static_cast<int>(network::is_connected()),
+             static_cast<int>(api_num_connected()));
+  }
   return actual_status;
 }
 
