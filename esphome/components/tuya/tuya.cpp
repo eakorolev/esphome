@@ -573,20 +573,20 @@ uint8_t Tuya::get_wifi_status_code_() {
 #endif
   }
 
-  // Apply force_connected_status override. Sticky latch: once we have
-  // announced WIFI_AND_CLOUD_CONNECTED (0x04) under the force flag,
-  // subsequent calls return 0x04 regardless of WiFi / API state. Tuya MCUs
-  // that gate autoreports on the 0x04 announcement frequently fail to
+  // Apply force_connected_status override. Sticky latch: once ESPHome has
+  // organically observed real_status == 0x04 (WiFi + cloud) at least once,
+  // every subsequent call returns 0x04 regardless of WiFi / API drops. Tuya
+  // MCUs that gate autoreports on the 0x04 announcement frequently fail to
   // re-enable on subsequent 0x04 edges — once they see 0x03 or 0x02 they
   // stay silent until a full power cycle.
   uint8_t actual_status = real_status;
-  if (this->force_connected_status_ && this->protocol_version_ >= 0x03) {
-    if (this->reached_cloud_status_) {
-      actual_status = static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED);
-    } else if (network::is_connected()) {
-      actual_status = static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED);
+  if (this->force_connected_status_) {
+    if (real_status == static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED) && !this->reached_cloud_status_) {
       this->reached_cloud_status_ = true;
       ESP_LOGI(TAG, "force_connected_status: latched WIFI_STATE=0x04 (sticky until next reboot)");
+    }
+    if (this->reached_cloud_status_) {
+      actual_status = static_cast<uint8_t>(TuyaWiFiState::WIFI_AND_CLOUD_CONNECTED);
     }
   }
 
