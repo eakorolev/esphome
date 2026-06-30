@@ -92,11 +92,19 @@ bool Tuya::validate_message_() {
   uint8_t new_byte = data[at];
 
   // Byte 0: HEADER1 (always 0x55)
-  if (at == 0)
-    return new_byte == 0x55;
+  if (at == 0) {
+    if (new_byte == 0x55)
+      return true;
+    ESP_LOGD(TAG, "Stray RX byte 0x%02X at frame start (expected 0x55)", new_byte);
+    return false;
+  }
   // Byte 1: HEADER2 (always 0xAA)
-  if (at == 1)
-    return new_byte == 0xAA;
+  if (at == 1) {
+    if (new_byte == 0xAA)
+      return true;
+    ESP_LOGD(TAG, "Stray RX byte 0x%02X after 0x55 (expected 0xAA)", new_byte);
+    return false;
+  }
 
   // Byte 2: VERSION
   // no validation for the following fields:
@@ -502,6 +510,12 @@ void Tuya::process_command_queue_() {
   uint32_t delay = now - this->last_command_timestamp_;
 
   if (now - this->last_rx_char_timestamp_ > RECEIVE_TIMEOUT) {
+    if (!this->rx_message_.empty()) {
+      char hex_buf[format_hex_pretty_size(MAX_DATAPOINT_LOG_BYTES)];
+      size_t to_log = std::min(this->rx_message_.size(), MAX_DATAPOINT_LOG_BYTES);
+      ESP_LOGW(TAG, "RX timeout: dropping %zu-byte partial frame: %s", this->rx_message_.size(),
+               format_hex_pretty_to(hex_buf, this->rx_message_.data(), to_log));
+    }
     this->rx_message_.clear();
   }
 
