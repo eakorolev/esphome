@@ -49,6 +49,11 @@ void Tuya::loop() {
 
 void Tuya::dump_config() {
   ESP_LOGCONFIG(TAG, "Tuya:");
+  // Counters appear unconditionally so a stuck-in-init device still shows
+  // its rx_timeouts / bad_headers / bad_checksums / real_drops / real_min.
+  ESP_LOGCONFIG(TAG, "  Counters: rx_timeouts=%u bad_headers=%u bad_checksums=%u real_drops=%u real_min=0x%02X",
+                this->rx_timeout_count_, this->bad_header_count_, this->bad_checksum_count_,
+                this->real_status_drop_count_, this->real_status_min_seen_);
   if (this->init_state_ != TuyaInitState::INIT_DONE) {
     if (this->init_failed_) {
       ESP_LOGCONFIG(TAG, "  Initialization failed. Current init_state: %u", static_cast<uint8_t>(this->init_state_));
@@ -84,12 +89,6 @@ void Tuya::dump_config() {
   }
   LOG_PIN("  Status Pin: ", this->status_pin_);
   ESP_LOGCONFIG(TAG, "  Product: '%s'", this->product_.c_str());
-  // Diagnostic snapshot — accumulated since boot, survives logger ring-buffer turnover.
-  // real_status_min_seen_ == 0xFF means "never updated" (no drops observed yet, or
-  // force_connected_status not enabled).
-  ESP_LOGCONFIG(TAG, "  Counters: rx_timeouts=%u bad_headers=%u bad_checksums=%u real_drops=%u real_min=0x%02X",
-                this->rx_timeout_count_, this->bad_header_count_, this->bad_checksum_count_,
-                this->real_status_drop_count_, this->real_status_min_seen_);
 }
 
 bool Tuya::validate_message_() {
