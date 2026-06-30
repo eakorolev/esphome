@@ -43,7 +43,19 @@ void arch_init() {
 }
 
 void arch_restart() {
-  lt_reboot();
+  // EXPERIMENT (eakorolev/tuya-force-connected): use the watchdog-based reset
+  // path instead of lt_reboot()'s CPU-only sys_cpu_reset(). On RTL8720CF
+  // (ambz2) the default `lt_reboot()` already does WLAN/BT/crypto teardown
+  // via the vendor SDK's software_reset(), but the device still routinely
+  // fails to rejoin WiFi after a soft reboot or OTA — only a full
+  // power-cycle recovers. Hypothesis: the chip-level peripheral / PMU state
+  // is not cleared by sys_cpu_reset (a CPU vector reset), while
+  // lt_reboot_wdt() pulses the hardware watchdog and so triggers a wider
+  // reset domain. lt_reboot_wdt() falls back to the common weak impl
+  // (lt_wdt_enable(1L)) because ambz2 does not override it — chip-tested by
+  // the libretiny v1.12 support matrix (rated `?`, so this IS untested but
+  // architecturally plausible).
+  lt_reboot_wdt();
   while (1) {
   }
 }
