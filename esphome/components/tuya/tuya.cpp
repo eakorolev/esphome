@@ -156,9 +156,9 @@ bool Tuya::validate_message_() {
     }
     hex_buf[to_log * 2] = '\0';
     if (length > MAX_DATAPOINT_LOG_BYTES) {
-      ESP_LOGD(TAG, "RX %02X %s+%zu", command, hex_buf, length - MAX_DATAPOINT_LOG_BYTES);
+      ESP_LOGD(TAG, "RX%02X%s+%zu", command, hex_buf, length - MAX_DATAPOINT_LOG_BYTES);
     } else {
-      ESP_LOGD(TAG, "RX %02X %s", command, hex_buf);
+      ESP_LOGD(TAG, "RX%02X%s", command, hex_buf);
     }
   }
   this->handle_command_(command, version, message_data, length);
@@ -514,10 +514,10 @@ void Tuya::send_raw_command_(TuyaCommand command) {
     }
     hex_buf[to_log * 2] = '\0';
     if (command.payload.size() > MAX_DATAPOINT_LOG_BYTES) {
-      ESP_LOGD(TAG, "TX %02X %s+%zu", static_cast<uint8_t>(command.cmd), hex_buf,
+      ESP_LOGD(TAG, "TX%02X%s+%zu", static_cast<uint8_t>(command.cmd), hex_buf,
                command.payload.size() - MAX_DATAPOINT_LOG_BYTES);
     } else {
-      ESP_LOGD(TAG, "TX %02X %s", static_cast<uint8_t>(command.cmd), hex_buf);
+      ESP_LOGD(TAG, "TX%02X%s", static_cast<uint8_t>(command.cmd), hex_buf);
     }
   }
 
@@ -616,14 +616,13 @@ uint8_t Tuya::get_wifi_status_code_() {
     }
   }
 
-  // Compact form: "WiFi_st: <sent> [<real>] (<wifi> <api_count>)".
-  // <real> appears only when it differs from <sent> (i.e. the force-latch is
-  // currently overriding) — saves bytes in the 768B logger ring buffer.
+  // Compact form: "WiFi:<sent>[ <real>](<wifi><api_count>)".
+  // <real> appears only when it differs from <sent> (force-latch overriding).
   if (real_status == actual_status) {
-    ESP_LOGD(TAG, "WiFi_st: %02X (%d %d)", actual_status, static_cast<int>(network::is_connected()),
+    ESP_LOGD(TAG, "WiFi:%02X(%d%d)", actual_status, static_cast<int>(network::is_connected()),
              static_cast<int>(api_num_connected()));
   } else {
-    ESP_LOGD(TAG, "WiFi_st: %02X %02X (%d %d)", actual_status, real_status, static_cast<int>(network::is_connected()),
+    ESP_LOGD(TAG, "WiFi:%02X %02X(%d%d)", actual_status, real_status, static_cast<int>(network::is_connected()),
              static_cast<int>(api_num_connected()));
   }
   return actual_status;
