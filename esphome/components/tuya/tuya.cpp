@@ -17,7 +17,15 @@ namespace esphome::tuya {
 
 static const char *const TAG = "tuya";
 static const int COMMAND_DELAY = 10;
-static const int RECEIVE_TIMEOUT = 300;
+// Inter-byte RX timeout. Some Tuya MCUs (observed on ZM25TQ curtain motor)
+// split their TX into two chunks: header+cmd+most-of-payload first, then the
+// last payload byte + checksum arrive several hundred ms later. The default
+// upstream value of 300 ms is too tight for those MCUs and consistently
+// truncated the trailing 2 bytes → rx_timeouts / bad_headers pile up while
+// bad_checksums stays zero. 1000 ms is generous enough for that MCU quirk
+// without being so long that a genuinely orphaned frame would sit for an
+// annoyingly long time.
+static const int RECEIVE_TIMEOUT = 1000;
 static const int MAX_RETRIES = 5;
 // Max bytes to log for datapoint values (larger values are truncated)
 static constexpr size_t MAX_DATAPOINT_LOG_BYTES = 16;
